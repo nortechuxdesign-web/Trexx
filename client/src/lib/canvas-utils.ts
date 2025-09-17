@@ -5,6 +5,31 @@ export interface ArtworkData {
   logoPath?: string;
 }
 
+// Função auxiliar para ajustar texto à largura disponível
+function fitTextToWidth(
+  ctx: CanvasRenderingContext2D, 
+  text: string, 
+  maxWidth: number, 
+  minSize: number, 
+  maxSize: number, 
+  fontFamily: string
+): number {
+  let fontSize = maxSize;
+  
+  while (fontSize >= minSize) {
+    ctx.font = `900 ${fontSize}px ${fontFamily}`;
+    const textWidth = ctx.measureText(text).width;
+    
+    if (textWidth <= maxWidth) {
+      return fontSize;
+    }
+    
+    fontSize -= 5;
+  }
+  
+  return minSize;
+}
+
 export function drawArtworkToCanvas(canvas: HTMLCanvasElement, data: ArtworkData) {
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
@@ -14,150 +39,224 @@ export function drawArtworkToCanvas(canvas: HTMLCanvasElement, data: ArtworkData
   // Clear canvas
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  // Draw gradient background
-  const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
-  gradient.addColorStop(0, primaryColor);
-  gradient.addColorStop(1, "#000000");
-  
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  // FUNDO PRETO com esfumaçado da cor nas bordas
+  drawBlackBackgroundWithColorSmudge(ctx, canvas.width, canvas.height, primaryColor);
 
-  // Set up text properties
-  ctx.fillStyle = "#FFFFFF";
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  
-  // Add text shadow effect
-  ctx.shadowColor = "rgba(0, 0, 0, 0.5)";
-  ctx.shadowOffsetX = 4;
-  ctx.shadowOffsetY = 4;
-  ctx.shadowBlur = 8;
+  // Margens: lateral mín.50px, superior/inferior mín.70px
+  const margins = {
+    horizontal: 50,
+    vertical: 70
+  };
 
   const centerX = canvas.width / 2;
   const centerY = canvas.height / 2;
 
   if (missionType === "choose-proplayer") {
     // Pro Player template
-    ctx.font = "bold 72px Inter, sans-serif";
-    
-    ctx.fillText("ESCOLHA O SEU", centerX, centerY - 60);
-    
-    // Company name in primary color
-    ctx.fillStyle = primaryColor;
-    ctx.fillText("PRO PLAYER", centerX, centerY);
-    
-    ctx.fillStyle = "#FFFFFF";
-    ctx.fillText("FAVORITO", centerX, centerY + 60);
+    drawProPlayerTemplate(ctx, centerX, centerY, primaryColor, companyName, margins);
   } else {
     // Instagram template
-    ctx.font = "bold 72px Inter, sans-serif";
-    
-    const line1 = `SIGA O ${companyName}`;
-    const line2 = "NO INSTAGRAM";
-    
-    ctx.fillText(line1, centerX, centerY - 30);
-    ctx.fillText(line2, centerX, centerY + 30);
-    
-    // Highlight company name
-    const textMetrics = ctx.measureText(`SIGA O `);
-    const companyX = centerX - textMetrics.width/2 + ctx.measureText(`SIGA O `).width;
-    
-    ctx.fillStyle = primaryColor;
-    ctx.fillText(companyName, companyX + ctx.measureText(companyName).width/2, centerY - 30);
+    drawInstagramTemplate(ctx, centerX, centerY, primaryColor, companyName, margins);
   }
 
-  // Draw Instagram icons for Instagram template
+  // Usar IMAGEM REAL 3D do Instagram para Instagram template
   if (missionType === "follow-instagram") {
-    drawInstagramIcon(ctx, 150, 150, primaryColor);
-    drawInstagramIcon(ctx, canvas.width - 150, canvas.height - 150, primaryColor);
+    drawRealInstagram3DIcon(ctx, 150, 150);
+    drawRealInstagram3DIcon(ctx, canvas.width - 150, canvas.height - 150);
   }
 
   // Draw footer logo
-  drawFooterLogo(ctx, centerX, canvas.height - 120, primaryColor);
+  drawFooterLogo(ctx, centerX, canvas.height - 120, primaryColor, logoPath);
+}
 
-  // Load and draw uploaded logo if available
+// NOVO: Fundo preto com esfumaçado da cor nas bordas (300px cada lado)
+function drawBlackBackgroundWithColorSmudge(
+  ctx: CanvasRenderingContext2D, 
+  width: number, 
+  height: number, 
+  primaryColor: string
+) {
+  // Fundo totalmente preto
+  ctx.fillStyle = "#000000";
+  ctx.fillRect(0, 0, width, height);
+
+  // Esfumaçado da cor na borda esquerda (300px)
+  const leftGradient = ctx.createLinearGradient(0, 0, 300, 0);
+  leftGradient.addColorStop(0, primaryColor + "80"); // 50% transparência
+  leftGradient.addColorStop(0.5, primaryColor + "40"); // 25% transparência
+  leftGradient.addColorStop(1, "transparent");
+  
+  ctx.fillStyle = leftGradient;
+  ctx.fillRect(0, 0, 300, height);
+
+  // Esfumaçado da cor na borda direita (300px)
+  const rightGradient = ctx.createLinearGradient(width - 300, 0, width, 0);
+  rightGradient.addColorStop(0, "transparent");
+  rightGradient.addColorStop(0.5, primaryColor + "40"); // 25% transparência
+  rightGradient.addColorStop(1, primaryColor + "80"); // 50% transparência
+  
+  ctx.fillStyle = rightGradient;
+  ctx.fillRect(width - 300, 0, 300, height);
+}
+
+// NOVO: Usar a imagem REAL 3D do Instagram
+function drawRealInstagram3DIcon(ctx: CanvasRenderingContext2D, x: number, y: number) {
+  const img = new Image();
+  img.crossOrigin = "anonymous";
+  img.onload = () => {
+    const size = 120;
+    // Desenhar com sombra para efeito 3D
+    ctx.shadowColor = "rgba(0, 0, 0, 0.4)";
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = 8;
+    ctx.shadowBlur = 20;
+    
+    ctx.drawImage(img, x - size/2, y - size/2, size, size);
+    
+    // Reset shadow
+    ctx.shadowColor = "transparent";
+  };
+  // Usar a imagem anexada
+  img.src = "/src/assets/instagram-3d-logo-free-png_1758076574587.webp";
+}
+
+function drawInstagramTemplate(
+  ctx: CanvasRenderingContext2D, 
+  centerX: number, 
+  centerY: number, 
+  primaryColor: string, 
+  companyName: string,
+  margins: { horizontal: number; vertical: number }
+) {
+  // Área segura para texto (respeitando margens)
+  const safeWidth = ctx.canvas.width - (margins.horizontal * 2);
+  const startY = margins.vertical;
+  
+  // Reset shadows
+  ctx.shadowColor = "transparent";
+  
+  // Configuração base do texto
+  ctx.textAlign = "center";
+  ctx.textBaseline = "top";
+
+  // Sombra forte para todos os textos
+  ctx.shadowColor = "rgba(0, 0, 0, 0.8)";
+  ctx.shadowOffsetX = 6;
+  ctx.shadowOffsetY = 6;
+  ctx.shadowBlur = 12;
+
+  // H2 - "SIGA O" (35-50px)
+  ctx.fillStyle = "#FFFFFF";
+  ctx.font = "900 45px Anton, Impact, sans-serif";
+  const line1Y = startY + 50;
+  ctx.fillText("SIGA O", centerX, line1Y);
+
+  // H1 - Nome da empresa (130-160px) - Destaque na cor primária
+  ctx.fillStyle = primaryColor;
+  let fontSize = fitTextToWidth(ctx, companyName.toUpperCase(), safeWidth, 130, 160, "Anton, Impact, sans-serif");
+  ctx.font = `900 ${fontSize}px Anton, Impact, sans-serif`;
+  const line2Y = line1Y + 100; // Espaçamento de 100px
+  ctx.fillText(companyName.toUpperCase(), centerX, line2Y);
+
+  // H2 - "NO INSTAGRAM" (35-50px)  
+  ctx.fillStyle = "#FFFFFF";
+  ctx.font = "900 45px Anton, Impact, sans-serif";
+  const line3Y = line2Y + fontSize + 80; // Espaçamento baseado no tamanho da fonte + 80px
+  ctx.fillText("NO INSTAGRAM", centerX, line3Y);
+}
+
+function drawProPlayerTemplate(
+  ctx: CanvasRenderingContext2D,
+  centerX: number, 
+  centerY: number, 
+  primaryColor: string, 
+  companyName: string,
+  margins: { horizontal: number; vertical: number }
+) {
+  // Área segura para texto (respeitando margens)
+  const safeWidth = ctx.canvas.width - (margins.horizontal * 2);
+  const startY = margins.vertical;
+  
+  // Reset shadows
+  ctx.shadowColor = "transparent";
+  
+  // Configuração base do texto
+  ctx.textAlign = "center";
+  ctx.textBaseline = "top";
+
+  // Sombra forte para todos os textos
+  ctx.shadowColor = "rgba(0, 0, 0, 0.8)";
+  ctx.shadowOffsetX = 6;
+  ctx.shadowOffsetY = 6;
+  ctx.shadowBlur = 12;
+
+  // H2 - "ESCOLHA O SEU" (35-50px)
+  ctx.fillStyle = "#FFFFFF";
+  ctx.font = "900 45px Anton, Impact, sans-serif";
+  const line1Y = startY + 50;
+  ctx.fillText("ESCOLHA O SEU", centerX, line1Y);
+  
+  // H1 - "PRO PLAYER" destaque (130-160px) - Na cor primária
+  ctx.fillStyle = primaryColor;
+  let fontSize = fitTextToWidth(ctx, "PRO PLAYER", safeWidth, 130, 160, "Anton, Impact, sans-serif");
+  ctx.font = `900 ${fontSize}px Anton, Impact, sans-serif`;
+  const line2Y = line1Y + 100;
+  ctx.fillText("PRO PLAYER", centerX, line2Y);
+  
+  // H2 - "FAVORITO" (35-50px)
+  ctx.fillStyle = "#FFFFFF";
+  ctx.font = "900 45px Anton, Impact, sans-serif";
+  const line3Y = line2Y + fontSize + 80;
+  ctx.fillText("FAVORITO", centerX, line3Y);
+}
+
+function drawFooterLogo(
+  ctx: CanvasRenderingContext2D, 
+  x: number, 
+  y: number, 
+  color: string, 
+  logoPath?: string
+) {
+  ctx.shadowColor = "transparent";
+  
   if (logoPath) {
+    // Carregar e desenhar logo do cliente se disponível
     const logoImg = new Image();
     logoImg.crossOrigin = "anonymous";
     logoImg.onload = () => {
-      // Draw logo in footer area
-      const logoSize = 80;
-      const logoX = centerX - logoSize / 2;
-      const logoY = canvas.height - 200;
+      const logoSize = 100;
+      const logoX = x - logoSize / 2;
+      const logoY = y - logoSize / 2 - 10;
       
       ctx.drawImage(logoImg, logoX, logoY, logoSize, logoSize);
     };
     logoImg.src = logoPath;
+  } else {
+    // Draw "Trexx" text como fallback
+    ctx.fillStyle = "#FFFFFF";
+    ctx.font = "bold 32px Anton, Impact, sans-serif";
+    ctx.textAlign = "left";
+    
+    const trexxWidth = ctx.measureText("Trexx").width;
+    const startX = x - (trexxWidth + 80) / 2;
+    
+    ctx.fillText("Trexx", startX, y);
+    
+    // Draw "CLUB" badge
+    const badgeX = startX + trexxWidth + 10;
+    const badgeY = y - 16;
+    const badgeWidth = 60;
+    const badgeHeight = 32;
+    
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.roundRect(badgeX, badgeY, badgeWidth, badgeHeight, 4);
+    ctx.fill();
+    
+    // "CLUB" text
+    ctx.fillStyle = "#000000";
+    ctx.font = "bold 16px Anton, Impact, sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText("CLUB", badgeX + badgeWidth/2, y - 2);
   }
-}
-
-function drawInstagramIcon(ctx: CanvasRenderingContext2D, x: number, y: number, color: string) {
-  const iconSize = 64;
-  const bgSize = 80;
-  
-  // Draw background circle
-  ctx.fillStyle = color;
-  ctx.shadowColor = "rgba(0, 0, 0, 0.3)";
-  ctx.shadowOffsetX = 0;
-  ctx.shadowOffsetY = 4;
-  ctx.shadowBlur = 12;
-  
-  const radius = bgSize / 2;
-  ctx.beginPath();
-  ctx.roundRect(x - radius, y - radius, bgSize, bgSize, 16);
-  ctx.fill();
-  
-  // Reset shadow for icon
-  ctx.shadowColor = "transparent";
-  
-  // Draw Instagram icon (simplified)
-  ctx.fillStyle = "#FFFFFF";
-  ctx.strokeStyle = "#FFFFFF";
-  ctx.lineWidth = 3;
-  
-  // Outer rounded rectangle
-  ctx.beginPath();
-  ctx.roundRect(x - iconSize/3, y - iconSize/3, iconSize*2/3, iconSize*2/3, 6);
-  ctx.stroke();
-  
-  // Inner circle (camera lens)
-  ctx.beginPath();
-  ctx.arc(x, y, iconSize/6, 0, Math.PI * 2);
-  ctx.stroke();
-  
-  // Small circle (flash)
-  ctx.beginPath();
-  ctx.arc(x + iconSize/6, y - iconSize/6, 3, 0, Math.PI * 2);
-  ctx.fill();
-}
-
-function drawFooterLogo(ctx: CanvasRenderingContext2D, x: number, y: number, color: string) {
-  ctx.shadowColor = "transparent";
-  
-  // Draw "Trexx" text
-  ctx.fillStyle = "#FFFFFF";
-  ctx.font = "bold 32px Inter, sans-serif";
-  ctx.textAlign = "left";
-  
-  const trexxWidth = ctx.measureText("Trexx").width;
-  const startX = x - (trexxWidth + 80) / 2; // Center the entire logo
-  
-  ctx.fillText("Trexx", startX, y);
-  
-  // Draw "CLUB" badge
-  const badgeX = startX + trexxWidth + 10;
-  const badgeY = y - 16;
-  const badgeWidth = 60;
-  const badgeHeight = 32;
-  
-  ctx.fillStyle = color;
-  ctx.beginPath();
-  ctx.roundRect(badgeX, badgeY, badgeWidth, badgeHeight, 4);
-  ctx.fill();
-  
-  // "CLUB" text
-  ctx.fillStyle = "#000000";
-  ctx.font = "bold 16px Inter, sans-serif";
-  ctx.textAlign = "center";
-  ctx.fillText("CLUB", badgeX + badgeWidth/2, y - 2);
 }
